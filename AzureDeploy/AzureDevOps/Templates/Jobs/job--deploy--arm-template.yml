@@ -1,0 +1,110 @@
+parameters:
+
+- name: name
+  displayName: Job Name
+  type: string
+  default: Deploy_ARM_Template
+
+- name: displayName
+  displayName: Job Display Name
+  type: string
+  default: Deploy ARM Template
+
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+
+- name: environment
+  displayName: Environment
+  type: string
+
+- name: vmImage
+  displayName: Variables
+  type: string
+  default: ubuntu-latest
+
+- name: serviceConnectionName
+  displayName: Service Connection Name
+  type: string
+
+- name: armArtefactPath
+  displayName: ARM Artefact Path
+  type: string
+
+- name: deploymentFile
+  displayName: Deployment File
+  type: string
+
+- name: deploymentName
+  displayName: Deployment Name
+  type: string
+  default: function-app-config
+
+- name: parametersFile
+  displayName: Parameters File
+  type: string
+
+- name: resourceGroupLocation
+  displayName: Resource Group Location
+  type: string
+
+- name: resourceGroupName
+  displayName: Resource Group Name
+  type: string
+
+jobs:
+- deployment: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  environment: ${{ parameters.environment }}
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  strategy:
+    runOnce:
+      deploy:
+        steps:
+        - download: current
+          artifact: ARM Template
+        - task: FileTransform@1
+          displayName: 'File Transform: ARM Template Parameters File'
+          inputs:
+            folderPath: ${{ parameters.armArtefactPath }}
+            fileType: json
+            targetFiles: ${{ parameters.parametersFile }}
+        - task: AzureResourceGroupDeployment@2
+          displayName: Validate Resource Group
+          inputs:
+            azureSubscription: ${{ parameters.serviceConnectionName }}
+            action: Create Or Update Resource Group
+            resourceGroupName: ${{ parameters.resourceGroupName }}
+            location: ${{ parameters.resourceGroupLocation }}
+            csmFile: ${{ parameters.armArtefactPath }}/${{ parameters.deploymentFile }}
+            csmParametersFile: ${{ parameters.armArtefactPath }}/${{ parameters.parametersFile }}
+            deploymentMode: Validation
+            deploymentName: ${{ parameters.deploymentName }}
+        - task: AzureResourceGroupDeployment@2
+          displayName: Deploy Resource Group
+          inputs:
+            azureSubscription: ${{ parameters.serviceConnectionName }}
+            action: Create Or Update Resource Group
+            resourceGroupName: ${{ parameters.resourceGroupName }}
+            location: ${{ parameters.resourceGroupLocation }}
+            csmFile: ${{ parameters.armArtefactPath }}/${{ parameters.deploymentFile }}
+            csmParametersFile: ${{ parameters.armArtefactPath }}/${{ parameters.parametersFile }}
+            deploymentName: ${{ parameters.deploymentName }}
