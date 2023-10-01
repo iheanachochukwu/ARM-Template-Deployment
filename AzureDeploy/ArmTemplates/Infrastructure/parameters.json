@@ -14,10 +14,12 @@
         "virtualMachineName": {
             "value": "Accruent-VM"
         },
+        "adminUser": {
+            "value": "AccruentUser"
+        },
         "networkSecurityGroupName": {
             "value": "Accruent-NSG"
         },
-
         "networkInterfaceName": {
             "value": "Accruent-NIC"
         },
@@ -28,14 +30,11 @@
         },
         "tags": {
             "value": {
-                "application": "Accruent Service",
-                "businessArea": "Engineering Core",
-                "environment": "BVT",
+                "application": "Accruent Infrastructure",
+                "purpose": "Recruitment Assesment",
+                "environment": "POC",
                 "version": "0.0.1"
             }
-        },
-        "servicePrincipalObjectId": {
-            "value": 568990090088989
-        }        
+        }       
     }
 }
