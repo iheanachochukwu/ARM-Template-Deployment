@@ -1,0 +1,106 @@
+parameters:
+
+- name: name
+  displayName: Job Name
+  type: string
+  default: Publish_ARM_Template
+
+- name: displayName
+  displayName: Job Display Name
+  type: string
+  default: Publish ARM Template
+
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+
+- name: vmImage
+  displayName: Variables
+  type: string
+  default: ubuntu-latest
+
+- name: serviceConnectionName
+  displayName: Service Connection Name
+  type: string
+
+- name: functionAppName
+  displayName: Function App Name
+  type: string
+
+- name: healthCheckUri
+  displayName: Health Check Uri
+  type: string
+  default: ''
+
+- name: outputResult
+  displayName: Output Result
+  type: boolean
+  default: false
+
+- name: resourceGroupName
+  displayName: Resource Group Name
+  type: string
+
+- name: scriptsArtefactPath
+  displayName: Scripts Artefact Path
+  type: string
+  default: ''
+
+- name: sourceSlot
+  displayName: Source Function App Slot
+  type: string
+
+- name: targetSlot
+  displayName: Target Function App Slot
+  type: string
+  default: production
+
+jobs:
+- job: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  steps:
+  - download: current
+    artifact: Deployment Scripts
+  - task: AzureAppServiceManage@0
+    displayName: Swap ${{ parameters.sourceSlot }} and ${{ parameters.targetSlot }}
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnectionName }}
+      webAppName: ${{ parameters.functionAppName }}
+      resourceGroupName: ${{ parameters.resourceGroupName }}
+      sourceSlot: ${{ parameters.sourceSlot }}
+      targetSlot: ${{ parameters.targetSlot }}
+  - ${{ if eq(parameters.outputResult, true) }}:
+    - powershell: |
+        Write-Output "##vso[task.setvariable variable=slotSwapped;isOutput=true]true"
+      name: Output_Slot_Swap_Success_Variable
+      displayName: Output Slot Swap Success Variable
+  - ${{ if not(eq(parameters.healthCheckUri, '')) }}:
+     - task: AzurePowerShell@5
+       displayName: Check Function App Version
+       inputs:
+         azureSubscription: ${{ parameters.serviceConnectionName }}
+         scriptType: FilePath
+         scriptPath: ${{ parameters.scriptsArtefactPath }}/Test-FunctionAppVersion.ps1
+         scriptArguments: -Uri ${{ parameters.healthCheckUri }} -AuthHeaderName Authorization -AuthHeaderValue "Bearer $(healthCheckAuthHeaderValue)"
+         failOnStandardError: true
+         azurePowerShellVersion: LatestVersion
+         pwsh: true#

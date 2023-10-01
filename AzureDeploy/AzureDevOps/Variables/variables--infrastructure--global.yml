@@ -1,0 +1,30 @@
+variables:
+  
+### Variables for the 'name' property
+- name: major
+  value: 1
+- name: minor
+  value: 0
+- name: patch
+  value: $[counter(format('{0}.{1}-{2}', variables['major'], variables['minor'], variables['Build.SourceBranchName']), 1)]
+- name: branch
+  ${{ if eq( variables['Build.SourceBranchName'], 'master' ) }}: 
+    value: ''
+  ${{ if ne( variables['Build.SourceBranchName'], 'master' ) }}: 
+    value: -${{ variables['Build.SourceBranchName'] }}
+
+### Variables for the 'Publish artefacts' stage.
+- name: validateArmTemplateJsonFiles
+  value: |-
+    template.json
+    parameters.json
+- name: armTemplateArtefactSourceFolder
+  value: ./AzureDeploy/ArmTemplates/Infrastructure
+
+### Variables for the 'Deploy to {env}' stages.
+- name: armArtefactPath
+  value: $(Pipeline.Workspace)/ARM Template
+- name: armDeploymentName
+  value: service
+- name: armDeploymentFile
+  value: arm-service.json

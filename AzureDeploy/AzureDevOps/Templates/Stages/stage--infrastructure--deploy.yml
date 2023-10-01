@@ -1,0 +1,87 @@
+parameters:
+- name: name
+  displayName: Stage Name
+  type: string
+- name: displayName
+  displayName: Stage Display Name
+  type: string
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+- name: environment
+  displayName: Environment
+  type: string
+
+stages:
+- stage: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  jobs:
+  - template: ../Jobs/job--deploy--arm-template.yml
+    parameters:
+      name: Deploy_Resources
+      displayName: Deploy Resources
+      environment: ${{ parameters.environment }}
+      serviceConnectionName: ${{ variables.serviceConnectionName }}
+      resourceGroupName: ${{ variables.resourceGroupName }}
+      resourceGroupLocation: ${{ variables.resourceGroupLocation }}
+      armArtefactPath: ${{ variables.armArtefactPath }}
+      deploymentName: ${{ variables.armDeploymentName }}
+      deploymentFile: ${{ variables.armDeploymentFile }}
+      parametersFile: ${{ variables.armParametersFile }}
+  - job: Add_Required_App_Settings_External
+    displayName: Add App Settings - External
+    dependsOn: Deploy_Resources
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: AzureAppServiceSettings@1
+      displayName: Production
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        appName: ${{ variables.functionAppNameExternal }}
+        resourceGroupName: ${{ variables.resourceGroupName }}
+        appSettings: ${{ variables.functionAppSettings }}
+    - task: AzureAppServiceSettings@1
+      displayName: ${{ variables.functionAppSettingsSlot }}
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        appName: ${{ variables.functionAppNameExternal }}
+        resourceGroupName: ${{ variables.resourceGroupName }}
+        slotName: ${{ variables.functionAppSettingsSlot }}
+        appSettings: ${{ variables.functionAppSettings }}
+  - job: Add_Required_App_Settings_Internal
+    displayName: Add App Settings - Internal
+    dependsOn: Deploy_Resources
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: AzureAppServiceSettings@1
+      displayName: Production
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        appName: ${{ variables.functionAppNameInternal }}
+        resourceGroupName: ${{ variables.resourceGroupName }}
+        appSettings: ${{ variables.functionAppSettings }}
+    - task: AzureAppServiceSettings@1
+      displayName: ${{ variables.functionAppSettingsSlot }}
+      inputs:
+        azureSubscription: ${{ variables.serviceConnectionName }}
+        appName: ${{ variables.functionAppNameInternal }}
+        resourceGroupName: ${{ variables.resourceGroupName }}
+        slotName: ${{ variables.functionAppSettingsSlot }}
+        appSettings: ${{ variables.functionAppSettings }}

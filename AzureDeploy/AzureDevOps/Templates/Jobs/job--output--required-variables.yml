@@ -1,0 +1,98 @@
+parameters:
+
+- name: name
+  displayName: Job Name
+  type: string
+  default: Output_Required_App_Settings
+
+- name: displayName
+  displayName: Job Display Name
+  type: string
+  default: Output Required App Settings
+
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+
+- name: vmImage
+  displayName: Variables
+  type: string
+  default: ubuntu-latest
+
+- name: serviceConnectionName
+  displayName: Service Connection Name
+  type: string
+
+- name: authTokenRequests
+  displayName: Auth Token Requests
+  type: object
+  default: []
+
+- name: functionAppName
+  displayName: Function App Name
+  type: string
+  default: ''
+
+- name: functionAppSlot
+  displayName: Function App Slot
+  type: string
+  default: production
+
+- name: resourceGroupName
+  displayName: Resource Group Name
+  type: string
+  default: ''
+
+- name: scriptsArtefactPath
+  displayName: ARM Artefact Path
+  type: string
+
+jobs:
+- job: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  steps:
+  - download: current
+    artifact: Deployment Scripts
+  - ${{ each authTokenRequest in parameters.authTokenRequests }}:
+    - task: AzurePowerShell@5
+      name: Output_Access_Token_${{ authTokenRequest.name }}
+      displayName: Output Access Token - ${{ authTokenRequest.name }}
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnectionName }}
+        scriptType: FilePath
+        scriptPath: ${{ parameters.scriptsArtefactPath }}/Write-FunctionAppAccessToken.ps1
+        scriptArguments: -AppIdUri ${{ authTokenRequest.functionAppIdUri }}
+        failOnStandardError: true
+        azurePowerShellVersion: LatestVersion
+        pwsh: true
+  - ${{ if not(eq(parameters.functionAppName, '')) }}:
+    - task: AzurePowerShell@5
+      name: Output_Required_App_Settings
+      displayName: Output Required App Settings
+      inputs:
+        azureSubscription: ${{ parameters.serviceConnectionName }}
+        scriptType: FilePath
+        scriptPath: ${{ parameters.scriptsArtefactPath }}/Write-OutputFunctionAppSettingValues.ps1
+        scriptArguments: -ResourceGroupName ${{ parameters.resourceGroupName }} -FunctionAppName ${{ parameters.functionAppName }} -Slot ${{ parameters.functionAppSlot }}
+        failOnStandardError: true
+        azurePowerShellVersion: LatestVersion
+        pwsh: true

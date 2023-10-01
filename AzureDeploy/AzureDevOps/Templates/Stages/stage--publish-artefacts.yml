@@ -1,0 +1,91 @@
+parameters:
+- name: name
+  displayName: Stage Name
+  type: string
+- name: displayName
+  displayName: Stage Display Name
+  type: string
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+- name: artefacts
+  displayName: Artefacts
+  type: object
+  default: []
+
+stages:
+- stage: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  jobs:
+  - ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'functionApp')) }}:
+    - job: Publish_Function_App
+      displayName: Publish Function App
+      pool:
+        vmImage: ubuntu-latest
+      steps:
+      - task: UseDotNet@2
+        displayName: Install .NET 6 sdk
+        inputs:
+          packageType: sdk
+          version: ${{ variables.dotNetCoreVersion }}
+          installationPath: $(Agent.ToolsDirectory)/dotnet
+      - task: DotNetCoreCLI@2
+        displayName: Restore NuGet Packages
+        inputs:
+          command: restore
+          feedsToUse: config
+          nugetConfigPath: ${{ variables.nugetConfigPath }}
+      - task: DotNetCoreCLI@2
+        displayName: Publish Function App
+        inputs:
+          command: publish
+          publishWebProjects: false
+          projects: ${{ variables.functionAppProject }}
+          arguments: --no-restore --configuration Release --output $(Pipeline.Workspace)/Publish/FunctionApp -p:version=$(Build.BuildNumber)
+          modifyOutputPath: false
+      - publish: $(Pipeline.Workspace)/Publish/FunctionApp
+        artifact: Function App
+  - ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'armTemplates')) }}:
+    - template: ../Jobs/job--publishartefact--directory.yml
+      parameters:
+        name: Publish_ARM_Template
+        displayName: Publish ARM Template
+        ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'functionApp')) }}:
+          dependsOn: Publish_Function_App
+        validateJsonFiles: ${{ variables.validateArmTemplateJsonFiles }}
+        artefactSourceFolder: ${{ variables.armTemplateArtefactSourceFolder }}
+        artefactName: ARM Template
+  - ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'integrationTests')) }}:
+    - template: ../Jobs/job--publishartefact--directory.yml
+      parameters:
+        name: Publish_Integration_Tests
+        displayName: Publish Integration Tests
+        ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'functionApp')) }}:
+          dependsOn: Publish_Function_App
+        validateJsonFiles: ${{ variables.validateIntegrationTestsJsonFiles }}
+        artefactSourceFolder: ${{ variables.integrationTestsArtefactSourceFolder }}
+        artefactName: Integration Tests
+  - ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'scripts')) }}:
+    - template: ../Jobs/job--publishartefact--directory.yml
+      parameters:
+        name: Publish_Deployment_Scripts
+        displayName: Publish Deployment Scripts
+        ${{ if or(eq(length(parameters.artefacts), 0), contains(join(';', parameters.artefacts), 'functionApp')) }}:
+          dependsOn: Publish_Function_App
+        artefactSourceFolder: ${{ variables.deploymentScriptsArtefactSourceFolder }}
+        artefactName: Deployment Scripts

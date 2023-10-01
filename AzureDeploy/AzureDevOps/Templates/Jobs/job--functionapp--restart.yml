@@ -1,0 +1,78 @@
+parameters:
+
+- name: name
+  displayName: Job Name
+  type: string
+  default: Restart_Function_App
+
+- name: displayName
+  displayName: Job Display Name
+  type: string
+  default: Restart Function App
+
+- name: dependsOn
+  displayName: Depends On
+  type: object
+  default: ''
+
+- name: condition
+  displayName: Condition
+  type: string
+  default: ''
+
+- name: variables
+  displayName: Variables
+  type: object
+  default: ''
+
+- name: vmImage
+  displayName: Variables
+  type: string
+  default: ubuntu-latest
+
+- name: serviceConnectionName
+  displayName: Service Connection Name
+  type: string
+
+- name: webAppName
+  displayName:  Web App Name
+  type: string
+
+- name: resourceGroupName
+  displayName: Resource Group Name
+  type: string
+  default: ''
+
+- name: slot
+  displayName: Slot 
+  type: string
+  default: ''
+
+jobs:
+- job: ${{ parameters.name }}
+  displayName: ${{ parameters.displayName }}
+  ${{ if not(eq(parameters.dependsOn, '')) }}:
+    dependsOn: ${{ parameters.dependsOn }}
+  ${{ if not(eq(parameters.condition, '')) }}:
+    condition: ${{ parameters.condition }}
+  ${{ if not(eq(parameters.variables, '')) }}:
+    variables: ${{ parameters.variables }}
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  steps:
+  - task: AzureAppServiceManage@0
+    displayName: Production
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnectionName }}
+      action: Restart Azure App Service
+      webAppName: ${{ parameters.webAppName }}
+  - task: AzureAppServiceManage@0
+    condition: and( not(eq('${{ parameters.resourceGroupName }}', '')), not(eq('${{ parameters.slot }}', '')) )
+    displayName: ${{ parameters.slot }}
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnectionName }}
+      action: Restart Azure App Service
+      webAppName: ${{ parameters.webAppName }}
+      specifySlotOrASE: true
+      resourceGroupName: ${{ parameters.resourceGroupName }}
+      slot: ${{ parameters.slot }}

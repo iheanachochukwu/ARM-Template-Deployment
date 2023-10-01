@@ -1,0 +1,5 @@
+variables:
+  serviceConnectionName: eng-automation
+  armParametersFile: parameters.json
+  resourceGroupLocation: West Europe
+  resourceGroupName: Accruent-Assessment-RG
