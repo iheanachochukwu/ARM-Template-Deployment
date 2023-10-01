@@ -8,7 +8,7 @@ steps:
 
 - task: AzureCLI@2
   inputs:
-    azureSubscription: 'eng-engineering'
+    # azureSubscription: 'eng-engineering'
     scriptType: 'bash'
     scriptLocation: 'scriptPath'
     scriptPath: '$(System.DefaultWorkingDirectory)/AzureDeploy/ArmTemplates/Infrastructure/script.ps1'
