@@ -1,0 +1,15 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'eng-engineering'
+    scriptType: 'bash'
+    scriptLocation: 'scriptPath'
+    scriptPath: '$(System.DefaultWorkingDirectory)/AzureDeploy/ArmTemplates/Infrastructure/script.ps1'
+    # workingDirectory: '''$(System.DefaultWorkingDirectory)''/AzureDeploy/ArmTemplates/Infrastructure'
