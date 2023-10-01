@@ -31,7 +31,7 @@
         }
     },
     "variables": {
-        "uniquePassword": "[concat(uniqueString(resourceGroup().id, 'saltString'))]"
+        "uniquePassword": "[concat('P@SSw0rD', uniqueString(resourceGroup().id, 'saltString'))]"
     },
     "resources": [
         {
