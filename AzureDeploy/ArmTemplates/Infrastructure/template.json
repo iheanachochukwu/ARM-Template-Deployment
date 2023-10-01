@@ -1,106 +1,64 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
+    "parameters": {
+        "virtualNetworkName": {
+            "type": "string"
+        },
+        "subnetName": {
+            "type": "string"
+        },
+        "vmSize": {
+            "type": "string"
+        },
+        "virtualMachineName": {
+            "type": "string"
+        },
+        "adminUser": {
+            "type": "string"
+        },
+        "networkSecurityGroupName": {
+            "type": "string"
+        },
+        "networkInterfaceName": {
+            "type": "string"
+        },
+        "keyVault": {
+            "type": "object"
+        },
+        "tags": {
+            "type": "object"
+        }
+    },
     "variables": {
         "uniquePassword": "[concat('P@ssw0rd', uniqueString(resourceGroup().id, 'saltString'))]"
     },
-
-    "parameters": {
-        "adminPassword": {
-            "type": "secureString",
-            "metadata": {
-                "description": "Password for the VM"
-            }
-        },
-        "virtualNetworkName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the virtual network"
-            }
-        },
-        "subnetName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the subnet"
-            }
-        },
-        "vmSize": {
-            "type": "string",
-            "metadata": {
-                "description": "Size of the VM"
-            }
-        },
-        "virtualMachineName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the virtual machine"
-            }
-        },
-        "networkSecurityGroupName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the network security group"
-            }
-        },
-        "networkInterfaceName": {
-            "type": "string",
-            "metadata": {
-                "description": "Name of the network Interface"
-            }
-        },
-        "keyVault": {
-            "type": "object",
-            "defaultValue": {},
-            "metadata": {
-                "description": "The Key Vault resources parameter to save secrets e.g VM passport."
-            }
-        },
-        "tags": {
-            "type": "object",
-            "metadata": {
-                "description": "The tags to apply to resources."
-            }
-        },
-        "servicePrincipalObjectId": {
-            "type": "string",
-            "metadata": {
-                "description": "Object ID of the Azure DevOps Service Principal"
-            }
-        }        
-    },
     "resources": [
         {
-            "type": "Microsoft.Compute/virtualMachines",
-            "apiVersion": "2023-07-01",
-            "name": "[parameters('virtualMachineName')]",
+            "type": "Microsoft.KeyVault/vaults",
+            "name": "[parameters('keyVault').name]",
+            "apiVersion": "2018-02-14",
             "location": "[resourceGroup().location]",
             "properties": {
-                "hardwareProfile": {
-                    "vmSize": "[parameters('vmSize')]"
-                },
-                "osProfile": {
-                    "computerName": "[parameters('virtualMachineName')]",
-                    "adminUsername": "AccruentUser",
-                    "adminPassword": "[variables('uniquePassword')]"
-                },
-                "storageProfile": {
-                    "imageReference": {
-                        "publisher": "MicrosoftWindowsServer",
-                        "offer": "WindowsServer",
-                        "sku": "2019-Datacenter",
-                        "version": "latest"
-                    },
-                    "osDisk": {
-                        "createOption": "FromImage"
-                    }
-                },
-                "networkProfile": {
-                    "networkInterfaces": [
-                        {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
-                        }
-                    ]
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [],
+                "sku": {
+                    "family": "A",
+                    "name": "standard"
                 }
+            },
+            "tags": "[parameters('tags')]"
+        },
+        {
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "name": "[concat(parameters('keyVault').name, '/vmPassword')]",
+            "apiVersion": "2018-02-14",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVault').name)]"
+            ],
+            "properties": {
+                "value": "[variables('uniquePassword')]"
             }
         },
         {
@@ -185,75 +143,41 @@
             }
         },
         {
-            "comments": "Key Vault Deployment.",
-            "type": "Microsoft.Resources/deployments",
-            "name": "[parameters('keyVault').name]",
-            "apiVersion": "2020-06-01",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2023-07-01",
+            "name": "[parameters('virtualMachineName')]",
+            "location": "[resourceGroup().location]",
             "properties": {
-                "mode": "Incremental",
-                "expressionEvaluationOptions": {
-                    "scope": "inner"
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
                 },
-                "parameters": {
-                    "keyVault": {
-                        "value": "[parameters('keyVault')]"
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineName')]",
+                    "adminUsername": "[parameters('adminUser')]",
+                    "adminPassword": "[variables('uniquePassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2019-Datacenter",
+                        "version": "latest"
                     },
-                    "tags": {
-                        "value": "[parameters('tags')]"
+                    "osDisk": {
+                        "createOption": "FromImage"
                     }
                 },
-                "template": {
-                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {
-                        "keyVault": {
-                            "type": "object"
-                        },
-                        "tags": {
-                            "type": "object"
-                        }
-                    },
-                    "resources": [
+                "networkProfile": {
+                    "networkInterfaces": [
                         {
-                            "comments": "Key Vault for storing keys and secrets used by the appilcation resources. This resource is only deployed in one region.",
-                            "type": "Microsoft.KeyVault/vaults",
-                            "name": "[parameters('keyVault').name]",
-                            "apiVersion": "2018-02-14",
-                            "location": "[resourceGroup().location]",
-                            "properties": {
-                                "tenantId": "[subscription().tenantId]",
-                                "accessPolicies": [
-                                    {
-                                        "tenantId": "[subscription().tenantId]",
-                                        "objectId": "[parameters('servicePrincipalObjectId')]",
-                                        "permissions": {
-                                            "secrets": ["Get", "List", "Set"]
-                                        }
-                                    }
-                                ],                                
-                                "sku": {
-                                    "family": "A",
-                                    "name": "standard"
-                                }
-                            },
-                            "tags": "[parameters('tags')]"
-                        },
-                        {
-                            "type": "Microsoft.KeyVault/vaults/secrets",
-                            "name": "[concat(parameters('keyVault').name, '/vmPassword')]",
-                            "apiVersion": "2018-02-14",
-                            "location": "[resourceGroup().location]",
-                            "dependsOn": [
-                                "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVault').name)]"
-                            ],
-                            "properties": {
-                                "value": "[variables('uniquePassword')]"
-                            }
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
                         }
-                        
                     ]
                 }
-            }
-        }           
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
+            ]
+        }
     ]
 }

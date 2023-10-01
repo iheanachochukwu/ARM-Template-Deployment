@@ -11,8 +11,8 @@ $resourceGroupName = "Accruent-Assessment-RG"
 $location = "westeurope"
 New-AzResourceGroup -Name $resourceGroupName -Location $location
 $deploymentName = "AccruentDeployment"
-$templateFile = "C:\Users\oluwo\OneDrive\Desktop\vm\template.json"
-$parameterFile = "C:\Users\oluwo\OneDrive\Desktop\vm\parameter.json"
+$templateFile = "up.json"
+$parameterFile = "parameters.json"
 
 New-AzResourceGroupDeployment -ResourceGroupName $resourceGroupName `
                              -Name $deploymentName `
